@@ -1,0 +1,94 @@
+:root {
+  --bg: #0f1115;
+  --surface: #1a1d24;
+  --text: #e7e9ee;
+  --muted: #8b90a0;
+  --accent: #7c9cff;
+  --border: #2a2e38;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.5;
+}
+
+.app { max-width: 640px; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
+
+.masthead h1 {
+  font-size: 1.6rem;
+  letter-spacing: 0.04em;
+  margin: 0 0 1rem;
+}
+
+.tabs { display: flex; gap: 0.25rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+.tabs button {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.35rem 0.9rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.tabs button.active { color: var(--text); border-color: var(--accent); }
+
+.view { display: flex; flex-direction: column; gap: 1.25rem; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1.5rem;
+}
+
+.card-head { display: flex; align-items: start; justify-content: space-between; }
+.word { font-size: 2.2rem; margin: 0; }
+.star {
+  background: none; border: none; cursor: pointer;
+  font-size: 1.6rem; color: var(--accent); line-height: 1;
+}
+
+.phonetic { color: var(--muted); margin: 0.25rem 0 0; }
+.pos { font-style: italic; color: var(--accent); margin: 0.5rem 0 0; font-size: 0.9rem; }
+.definition { margin: 0.75rem 0 0; }
+.example { color: var(--muted); margin: 0.75rem 0 0; }
+.muted { color: var(--muted); }
+
+.actions { display: flex; gap: 0.6rem; margin-top: 1.5rem; }
+.actions button {
+  flex: 1;
+  padding: 0.6rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+.actions button.primary { background: var(--accent); color: #0f1115; border-color: var(--accent); }
+.actions button:disabled { opacity: 0.5; cursor: default; }
+
+.search { display: flex; gap: 0.5rem; }
+.search input {
+  flex: 1;
+  padding: 0.6rem 0.8rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+.search button {
+  padding: 0 1.1rem;
+  border-radius: 10px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #0f1115;
+  cursor: pointer;
+}
+
+.date-label { color: var(--muted); font-size: 0.85rem; margin: 0 0 0.4rem; }
