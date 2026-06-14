@@ -32,6 +32,14 @@ class WordRequest(BaseModel):
 
 
 class WordList(BaseModel):
-    """A plain list of words (favorites or known)."""
+    """A page of words (favorites or known) plus the total count for paging."""
 
     words: list[str]
+    total: int = 0
+
+
+class HistoryItem(BaseModel):
+    """The daily word for a given date."""
+
+    date: str
+    word: Word

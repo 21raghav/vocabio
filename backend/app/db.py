@@ -6,7 +6,7 @@ into their own files only if this grows unwieldy.
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, String, Text, create_engine, select
+from sqlalchemy import DateTime, String, Text, create_engine, func, select
 from sqlalchemy.orm import DeclarativeBase, Session, mapped_column, sessionmaker
 
 from .config import settings
@@ -37,14 +37,19 @@ class WordCache(Base):
     fetched_at = mapped_column(DateTime, default=datetime.utcnow)
 
 
+# Favorites/known are scoped per anonymous user: the client sends a stable random
+# user id (X-User-Id header), so each browser sees only its own words. The composite
+# primary key (user_id, word) keeps each user's set independent.
 class Favorite(Base):
     __tablename__ = "favorite"
+    user_id = mapped_column(String, primary_key=True)
     word = mapped_column(String, primary_key=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
 
 
 class KnownWord(Base):
     __tablename__ = "known_word"
+    user_id = mapped_column(String, primary_key=True)
     word = mapped_column(String, primary_key=True)
     created_at = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -62,22 +67,41 @@ def get_db():
         db.close()
 
 
-# --- CRUD helpers (kept tiny; the routes stay thin) ---
+# --- CRUD helpers (kept tiny; the routes stay thin). All scoped by user_id. ---
 
-def list_words(db: Session, model) -> list[str]:
-    """Words from a Favorite/KnownWord table, newest first."""
-    rows = db.scalars(select(model).order_by(model.created_at.desc())).all()
+def list_words(db: Session, model, user_id: str, limit: int, offset: int) -> list[str]:
+    """A page of the user's words, newest first."""
+    rows = db.scalars(
+        select(model)
+        .where(model.user_id == user_id)
+        .order_by(model.created_at.desc())
+        .limit(limit)
+        .offset(offset)
+    ).all()
     return [r.word for r in rows]
 
 
-def add_word(db: Session, model, word: str) -> None:
-    if db.get(model, word) is None:
-        db.add(model(word=word))
+def count_words(db: Session, model, user_id: str) -> int:
+    return db.scalar(
+        select(func.count()).select_from(model).where(model.user_id == user_id)
+    )
+
+
+def all_words(db: Session, model, user_id: str) -> set[str]:
+    """Every word for a user (used to exclude known words when picking next)."""
+    return set(
+        db.scalars(select(model.word).where(model.user_id == user_id)).all()
+    )
+
+
+def add_word(db: Session, model, user_id: str, word: str) -> None:
+    if db.get(model, (user_id, word)) is None:
+        db.add(model(user_id=user_id, word=word))
         db.commit()
 
 
-def remove_word(db: Session, model, word: str) -> None:
-    row = db.get(model, word)
+def remove_word(db: Session, model, user_id: str, word: str) -> None:
+    row = db.get(model, (user_id, word))
     if row is not None:
         db.delete(row)
         db.commit()

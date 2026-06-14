@@ -53,19 +53,51 @@ def test_pick_next_word_respects_exclusions():
 
 
 def test_favorites_crud(client):
-    assert client.get("/api/favorites").json() == {"words": []}
+    assert client.get("/api/favorites").json() == {"words": [], "total": 0}
 
     created = client.post("/api/favorites", json={"word": "Reverie"})
     assert created.status_code == 201
-    assert created.json() == {"words": ["reverie"]}
+    assert created.json() == {"words": ["reverie"], "total": 1}
 
     duplicate = client.post("/api/favorites", json={"word": "reverie"})
     assert duplicate.status_code == 201
-    assert duplicate.json() == {"words": ["reverie"]}
+    assert duplicate.json() == {"words": ["reverie"], "total": 1}
 
     deleted = client.delete("/api/favorites/reverie")
     assert deleted.status_code == 200
-    assert deleted.json() == {"words": []}
+    assert deleted.json() == {"words": [], "total": 0}
+
+
+def test_favorites_are_scoped_per_user(client):
+    client.post("/api/favorites", json={"word": "zephyr"}, headers={"X-User-Id": "alice"})
+    client.post("/api/favorites", json={"word": "halcyon"}, headers={"X-User-Id": "bob"})
+
+    alice = client.get("/api/favorites", headers={"X-User-Id": "alice"}).json()
+    bob = client.get("/api/favorites", headers={"X-User-Id": "bob"}).json()
+
+    assert alice["words"] == ["zephyr"]
+    assert bob["words"] == ["halcyon"]
+
+
+def test_favorites_pagination(client):
+    for w in ["alpha", "beta", "gamma"]:
+        client.post("/api/favorites", json={"word": w}, headers={"X-User-Id": "u"})
+
+    page = client.get("/api/favorites?limit=2&offset=0", headers={"X-User-Id": "u"}).json()
+    assert page["total"] == 3
+    assert len(page["words"]) == 2
+
+
+def test_history_returns_requested_days(client, monkeypatch):
+    async def fake_enrich(word, db):
+        return Word(word=word)
+
+    monkeypatch.setattr(words, "enrich", fake_enrich)
+    resp = client.get("/api/history?days=5")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert len(body) == 5
+    assert body[0]["date"] == date.today().isoformat()
 
 
 def test_next_word_excludes_known_session_seen_and_today(client, monkeypatch):

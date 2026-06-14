@@ -1,33 +1,35 @@
 import { useEffect, useState } from "react";
-import { getWordOfDay } from "../api.js";
+import { getHistory, RateLimitError } from "../api.js";
 import WordCard from "./WordCard.jsx";
 
-// Browse the last N days of words. Until the backend has a history endpoint
-// (Phase 3) we simply ask for word-of-the-day on each past date.
+// Browse the last N days of words via the backend's /api/history endpoint.
 const DAYS = 7;
 
 export default function HistoryList({ favorites, onToggleFavorite }) {
   const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    const dates = Array.from({ length: DAYS }, (_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      return d.toISOString().slice(0, 10);
-    });
-    Promise.all(dates.map((iso) => getWordOfDay(iso).then((w) => ({ iso, w }))))
+    getHistory(DAYS)
       .then(setItems)
-      .catch(() => setItems([]));
+      .catch((e) =>
+        setError(e instanceof RateLimitError ? e.message : "Couldn’t load history.")
+      )
+      .finally(() => setLoading(false));
   }, []);
+
+  if (loading) return <p className="muted view">Loading history…</p>;
+  if (error) return <p className="muted view">{error}</p>;
 
   return (
     <div className="view">
-      {items.map(({ iso, w }) => (
-        <div key={iso}>
-          <p className="date-label">{iso}</p>
+      {items.map(({ date, word }) => (
+        <div key={date}>
+          <p className="date-label">{date}</p>
           <WordCard
-            data={w}
-            isFavorite={favorites.includes(w.word)}
+            data={word}
+            isFavorite={favorites.includes(word.word)}
             onToggleFavorite={onToggleFavorite}
           />
         </div>
