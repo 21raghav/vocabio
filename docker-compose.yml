@@ -1,0 +1,42 @@
+# Runs the whole app with one command: docker compose up --build
+# Open http://localhost:8080
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-vocabio}
+      # Defaults to a weak value for local dev; set a strong one in .env for deploys.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vocabio}
+      POSTGRES_DB: ${POSTGRES_DB:-vocabio}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # Backend waits until Postgres actually accepts connections.
+      test: ["CMD-SHELL", "pg_isready -U vocabio"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-vocabio}:${POSTGRES_PASSWORD:-vocabio}@db:5432/${POSTGRES_DB:-vocabio}
+      # On the EC2 box set this to the public URL, e.g. http://<public-ip>
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      # Local default 8080; on the server set FRONTEND_PORT=80 in .env.
+      - "${FRONTEND_PORT:-8080}:80"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:

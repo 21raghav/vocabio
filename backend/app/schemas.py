@@ -34,4 +34,4 @@ class WordRequest(BaseModel):
 class WordList(BaseModel):
     """A plain list of words (favorites or known)."""
 
-    words: list
+    words: list[str]

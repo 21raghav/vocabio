@@ -293,8 +293,115 @@ Ran before the first commit. Codebase is safe to commit to a **private** repo.
 
 ---
 
-## Next up — Phase 4 (Dockerize)
-Write a Dockerfile for the backend and a multi-stage one for the frontend (build →
-nginx), plus `docker-compose.yml` wiring **frontend + backend + Postgres** so the
-whole app runs with one `docker-compose up`. This is where `database_url` flips from
-SQLite to Postgres.
+## Phase 4 — Dockerize ✅ (built + run + verified)
+The whole app runs with one command: `docker compose up --build`, served at
+**http://localhost:8080**. Three services wired together.
+
+> Verified end-to-end on Docker 29.5.3 (Apple M1): all three containers healthy,
+> the DB healthcheck gate held the backend until Postgres was ready, `/health` and
+> `/api/word-of-the-day` returned through nginx, and a favorite was written to
+> **Postgres** (the `DATABASE_URL` override worked with no code change).
+
+### Files created
+| File | Purpose |
+|---|---|
+| `backend/Dockerfile` | Python 3.12-slim + uvicorn; deps cached in their own layer. |
+| `backend/.dockerignore` | Keep `.venv`, `*.db`, `tests/`, `.env` out of the image. |
+| `frontend/Dockerfile` | Multi-stage: Node build → nginx serving static files. |
+| `frontend/nginx.conf` | Serves the SPA and proxies `/api` + `/health` to the backend. |
+| `frontend/.dockerignore` | Keep `node_modules`/`dist` out of the build context. |
+| `docker-compose.yml` | Wires `db` (Postgres), `backend`, `frontend`. |
+
+---
+
+## Phase 4 Logic — Explained
+
+### 1. Three services, one network (`docker-compose.yml`)
+```
+frontend (nginx :80 → host :8080)  ──►  backend (uvicorn :8000)  ──►  db (postgres :5432)
+```
+Compose puts them on one network where they reach each other **by service name**
+(`backend`, `db`). That's why `nginx.conf` says `proxy_pass http://backend:8000` and
+`DATABASE_URL` points at `db:5432` — no IPs, no host ports needed between services.
+
+### 2. This is where SQLite flips to Postgres
+The backend's `database_url` defaults to SQLite, but compose overrides it via the
+`DATABASE_URL` env var to a Postgres URL. **No code change** — exactly the payoff of
+making the DB configurable back in Phase 3. The backend's `init_db()` (run on
+startup) creates the tables in Postgres on first boot.
+
+### 3. The healthcheck gate (no race on startup)
+Postgres takes a moment to accept connections. `db` has a `pg_isready` healthcheck,
+and `backend` declares `depends_on: db: condition: service_healthy`, so the backend
+only starts **after** the database is actually ready — avoiding the classic
+"connection refused on boot" race.
+
+### 4. Why nginx fronts the app (and CORS basically disappears)
+In dev, the Vite proxy forwarded `/api`. In production, **nginx does the same job**:
+the browser only ever talks to the frontend origin (`:8080`), and nginx quietly
+proxies `/api` to the backend. Because it's all one origin, CORS is a non-issue —
+the same relative paths in `api.js` work unchanged from dev to prod.
+
+### 5. Layer caching & multi-stage = small, fast images
+- Both Dockerfiles copy dependency manifests (`requirements.txt` / `package*.json`)
+  and install **before** copying source, so dependency layers are reused unless the
+  manifests change.
+- The frontend uses a **multi-stage build**: the heavy Node toolchain builds the
+  app, but the final image is just nginx + the static `dist/` output — no Node in
+  the shipped image.
+
+### How to run it
+```bash
+docker compose up --build      # then open http://localhost:8080
+docker compose down            # stop; add -v to also wipe the Postgres volume
+```
+
+---
+
+## Phase 5 — Deploy to AWS EC2 ✅ (live)
+**Live at http://18.221.119.153** — `t3.micro`, Amazon Linux 2023, running the
+compose stack. Console-guided launch (no local AWS CLI). Security posture: demo
+with small hardening (data stays global/open; no per-user auth yet).
+
+### What was done
+1. SSH'd in with the `vocabio_key.pem` key pair.
+2. Uploaded source via `rsync` (excluded `.venv`/`node_modules`/`.git`/`*.db`/`.env`).
+3. Installed Docker + the `compose` and `buildx` CLI plugins (the AL2023 package
+   ships bare; Compose v5 needed buildx).
+4. Created the server `.env` with a strong random Postgres password
+   (`openssl rand -hex 24`) + `CORS_ORIGINS=http://18.221.119.153` + `FRONTEND_PORT=80`.
+5. `docker compose up --build -d`.
+6. Fixed a port mismatch — frontend was on 8080 but the firewall opens 80; made the
+   host port configurable (`FRONTEND_PORT`) and set it to 80 on the server.
+7. Added `restart: unless-stopped` to all services + Docker enabled on boot, so the
+   app self-heals across reboots.
+8. Verified live from the public internet, including a write to Postgres.
+
+### Security shape
+- Only ports 22 (my IP) and 80 (public) open; Postgres (5432) and backend (8000)
+  are reachable only inside Docker's private network.
+- Secrets in an untracked server-side `.env`, never in git or the image.
+- Rate-limited (slowapi, 120/min per IP).
+
+### Pre-deploy hardening ✅ (built + verified)
+- **Rate limiting** — added `slowapi` with a `120/minute` per-IP default limit
+  (`main.py`). Verified: a 135-request burst returned `429` after ~118. Caps the
+  arbitrary-`/api/words/{word}` cache-growth/DoS vector flagged in the security review.
+- **Configurable Postgres secret** — `docker-compose.yml` now reads
+  `POSTGRES_USER/PASSWORD/DB` and `CORS_ORIGINS` from the environment (`.env`, which
+  is gitignored). Local keeps weak dev defaults; the EC2 box gets a strong password
+  via its own `.env`. Root `.env.example` documents the variables.
+
+### Remaining still-open (acceptable for a demo, not for real use)
+- No per-user auth — favorites/known words are one shared, world-writable dataset.
+
+### Deploy steps (Console + on-instance commands) — see walkthrough
+1. Get the code onto EC2 — either push to GitHub then clone, or `scp` the folder.
+   (Commits are being held until the project is complete, so likely `scp` or a
+   push right before deploying.)
+2. EC2 key pair + launch `t3.micro` (Amazon Linux 2023).
+3. Security group: 22 (SSH, my IP) + 80 (HTTP, public).
+4. SSH in → install Docker + compose plugin.
+5. Create `.env` with a strong password + `CORS_ORIGINS=http://<public-ip>` →
+   `docker compose up -d --build`.
+6. Open `http://<public-ip>`.

@@ -6,6 +6,10 @@ from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 
 from . import words
@@ -21,6 +25,14 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Vocabio API", lifespan=lifespan)
+
+# Light per-IP rate limit — caps abuse (e.g. flooding /api/words/{word}, which each
+# insert a cache row). Behind nginx the key is the proxy unless X-Forwarded-For is
+# trusted, so this also acts as a sane global cap for the demo deployment.
+limiter = Limiter(key_func=get_remote_address, default_limits=["120/minute"])
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
