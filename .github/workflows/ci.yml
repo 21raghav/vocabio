@@ -1,0 +1,45 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install deps
+        run: pip install -r backend/requirements-dev.txt
+      - name: Run tests
+        run: pytest
+
+  deploy:
+    # Only deploy after tests pass, and only on a push to main (not PRs).
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/key
+          chmod 600 ~/.ssh/key
+          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
+      - name: Deploy to EC2
+        run: |
+          # Sync source to the server (preserve the server-side .env + data).
+          rsync -az --delete \
+            --exclude '.venv' --exclude 'node_modules' --exclude 'dist' \
+            --exclude '*.db' --exclude '.git' --exclude '__pycache__' \
+            --exclude '.env' --exclude '.github' \
+            -e "ssh -i ~/.ssh/key" \
+            ./ ec2-user@"${{ secrets.EC2_HOST }}":/home/ec2-user/vocabio/
+          # Rebuild + restart with the production (Caddy/HTTPS) overlay.
+          ssh -i ~/.ssh/key ec2-user@"${{ secrets.EC2_HOST }}" \
+            'cd /home/ec2-user/vocabio && sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build'
