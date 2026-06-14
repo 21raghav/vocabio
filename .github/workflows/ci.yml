@@ -30,16 +30,17 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/key
           chmod 600 ~/.ssh/key
-          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
       - name: Deploy to EC2
+        env:
+          SSH: ssh -i ~/.ssh/key -o StrictHostKeyChecking=accept-new
+          HOST: ec2-user@${{ secrets.EC2_HOST }}
         run: |
           # Sync source to the server (preserve the server-side .env + data).
           rsync -az --delete \
             --exclude '.venv' --exclude 'node_modules' --exclude 'dist' \
             --exclude '*.db' --exclude '.git' --exclude '__pycache__' \
             --exclude '.env' --exclude '.github' \
-            -e "ssh -i ~/.ssh/key" \
-            ./ ec2-user@"${{ secrets.EC2_HOST }}":/home/ec2-user/vocabio/
+            -e "$SSH" ./ "$HOST":/home/ec2-user/vocabio/
           # Rebuild + restart with the production (Caddy/HTTPS) overlay.
-          ssh -i ~/.ssh/key ec2-user@"${{ secrets.EC2_HOST }}" \
+          $SSH "$HOST" \
             'cd /home/ec2-user/vocabio && sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build'
