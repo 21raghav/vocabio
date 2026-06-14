@@ -1,0 +1,23 @@
+# Production overlay: adds Caddy in front to terminate HTTPS with an automatic
+# Let's Encrypt certificate. Use on the server with:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Caddy reaches the frontend over the Docker network (frontend:80), so the
+# frontend's own host-port mapping is irrelevant here — Caddy owns 80 and 443.
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data      # stores the issued certs (persists renewals)
+      - caddy_config:/config
+    depends_on:
+      - frontend
+
+volumes:
+  caddy_data:
+  caddy_config:

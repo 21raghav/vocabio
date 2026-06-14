@@ -1,0 +1,6 @@
+# Caddy auto-obtains and auto-renews a Let's Encrypt cert for this domain,
+# terminates HTTPS, and forwards everything to the frontend container (which
+# serves the SPA and proxies /api to the backend). HTTP is auto-redirected to HTTPS.
+vocabio.duckdns.org {
+	reverse_proxy frontend:80
+}

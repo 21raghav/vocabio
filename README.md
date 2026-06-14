@@ -5,7 +5,7 @@ definition, pronunciation, and part of speech. You can keep going past the daily
 word ("Show me another"), mark words you already know so they stop reappearing
 ("I know this"), save favorites, and look up any word.
 
-**Live demo:** http://18.221.119.153
+**Live demo:** https://vocabio.duckdns.org
 
 ## Stack
 

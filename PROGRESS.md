@@ -359,7 +359,7 @@ docker compose down            # stop; add -v to also wipe the Postgres volume
 ---
 
 ## Phase 5 — Deploy to AWS EC2 ✅ (live)
-**Live at http://18.221.119.153** — `t3.micro`, Amazon Linux 2023, running the
+**Live at https://vocabio.duckdns.org** — `t3.micro`, Amazon Linux 2023, running the
 compose stack. Console-guided launch (no local AWS CLI). Security posture: demo
 with small hardening (data stays global/open; no per-user auth yet).
 
@@ -369,7 +369,7 @@ with small hardening (data stays global/open; no per-user auth yet).
 3. Installed Docker + the `compose` and `buildx` CLI plugins (the AL2023 package
    ships bare; Compose v5 needed buildx).
 4. Created the server `.env` with a strong random Postgres password
-   (`openssl rand -hex 24`) + `CORS_ORIGINS=http://18.221.119.153` + `FRONTEND_PORT=80`.
+   (`openssl rand -hex 24`) + `CORS_ORIGINS=https://vocabio.duckdns.org` + `FRONTEND_PORT=80`.
 5. `docker compose up --build -d`.
 6. Fixed a port mismatch — frontend was on 8080 but the firewall opens 80; made the
    host port configurable (`FRONTEND_PORT`) and set it to 80 on the server.
