@@ -2,5 +2,16 @@
 # terminates HTTPS, and forwards everything to the frontend container (which
 # serves the SPA and proxies /api to the backend). HTTP is auto-redirected to HTTPS.
 vocabio.duckdns.org {
+	header {
+		# Force HTTPS for a year (we're committed to TLS).
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		# Don't let browsers MIME-sniff responses.
+		X-Content-Type-Options "nosniff"
+		# Disallow framing (clickjacking protection).
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# Hide the server banner.
+		-Server
+	}
 	reverse_proxy frontend:80
 }
