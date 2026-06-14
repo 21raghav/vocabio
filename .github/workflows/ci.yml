@@ -18,9 +18,23 @@ jobs:
       - name: Run tests
         run: pytest
 
+  build-frontend:
+    # Catch a broken React build here, before the deploy step ever runs.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install + build
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
   deploy:
-    # Only deploy after tests pass, and only on a push to main (not PRs).
-    needs: test
+    # Only deploy after tests + frontend build pass, and only on a push to main.
+    needs: [test, build-frontend]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:

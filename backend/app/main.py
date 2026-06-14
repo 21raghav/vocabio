@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from datetime import date
 from typing import Optional
 
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -26,10 +26,23 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Vocabio API", lifespan=lifespan)
 
+def client_ip(request: Request) -> str:
+    """Real client IP for rate limiting.
+
+    The app sits behind Caddy → nginx, so request.client.host is an internal proxy
+    address. The proxies set X-Forwarded-For with the original client first, so we
+    key on that to rate-limit per visitor rather than globally. (XFF is spoofable in
+    principle, but the proxies overwrite it for direct clients — fine for this demo.)
+    """
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return get_remote_address(request)
+
+
 # Light per-IP rate limit — caps abuse (e.g. flooding /api/words/{word}, which each
-# insert a cache row). Behind nginx the key is the proxy unless X-Forwarded-For is
-# trusted, so this also acts as a sane global cap for the demo deployment.
-limiter = Limiter(key_func=get_remote_address, default_limits=["120/minute"])
+# insert a cache row).
+limiter = Limiter(key_func=client_ip, default_limits=["120/minute"])
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
