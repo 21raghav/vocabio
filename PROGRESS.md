@@ -455,9 +455,20 @@ Run on the server:
 - **AWS Budgets cost alert** — emails if spend exceeds the threshold (guards against
   surprise charges after the free tier ends).
 
+## Phase 9 — Per-user data, history, pagination, UX states ✅
+- **Anonymous per-device identity** — the frontend generates a random user id (stored
+  in localStorage) and sends it as `X-User-Id`; favorites/known are scoped per user
+  via a composite `(user_id, word)` primary key. No login wall. `/api/words/next`
+  excludes only *that user's* known words.
+- **Real `/api/history?days=N`** endpoint — returns the daily words for the last N
+  days (server-side), replacing the client-side reconstruction.
+- **Pagination** — favorites/known accept `limit`/`offset` and return `total`.
+- **Frontend UX** — loading and error states on every view, graceful `429`
+  ("slow down") handling via a `RateLimitError`, and a top-level `ErrorBoundary`.
+- Schema change required a one-time Postgres volume reset on deploy (no Alembic yet).
+
 ### Still open (intentional, not blockers)
-- No per-user auth (favorites/known are one global dataset).
-- Word list now 738 curated words (~2 years before any repeat).
+- Word list: 738 curated words (~2 years before any repeat) — could grow further.
 - Thinner-than-ideal tests (no frontend tests; word-of-day/dictionary paths untested).
 - No DB backups, monitoring/uptime check, or CI lint step.
 - GitHub Actions Node-20 deprecation warning (cosmetic; bump action versions later).

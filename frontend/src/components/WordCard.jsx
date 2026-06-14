@@ -8,11 +8,13 @@ export default function WordCard({
   onKnowThis,
   onAnother,
   busy,
+  anim = "enter", // "flip" when advancing, "enter" for a gentle fade elsewhere
 }) {
   if (!data) return null;
 
   return (
-    <article className="card">
+    <div className="card-stage">
+    <article className={`card ${anim}`}>
       <header className="card-head">
         <h2 className="word">{data.word}</h2>
         {onToggleFavorite && (
@@ -53,5 +55,6 @@ export default function WordCard({
         </footer>
       )}
     </article>
+    </div>
   );
 }

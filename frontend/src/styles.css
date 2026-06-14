@@ -1,10 +1,12 @@
 :root {
-  --bg: #0f1115;
-  --surface: #1a1d24;
-  --text: #e7e9ee;
-  --muted: #8b90a0;
-  --accent: #7c9cff;
-  --border: #2a2e38;
+  --bg: #f6f1e6;        /* warm cream */
+  --surface: #fffdf8;   /* card, a touch lighter than bg */
+  --ink: #2c271f;       /* warm near-black text */
+  --muted: #9a9082;     /* secondary text */
+  --accent: #bf6b3f;    /* muted terracotta, used sparingly */
+  --accent-soft: #f0e3d4;
+  --line: #e6dcc9;      /* hairline borders */
+  --radius: 12px;
 }
 
 * { box-sizing: border-box; }
@@ -12,83 +14,179 @@
 body {
   margin: 0;
   background: var(--bg);
-  color: var(--text);
-  font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
-  line-height: 1.5;
+  color: var(--ink);
+  font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
 }
 
-.app { max-width: 640px; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
+.app { max-width: 600px; margin: 0 auto; padding: 3rem 1.25rem 5rem; }
 
+/* ---- Masthead + tabs ---- */
 .masthead h1 {
-  font-size: 1.6rem;
-  letter-spacing: 0.04em;
-  margin: 0 0 1rem;
+  font-family: "Iowan Old Style", Palatino, "Book Antiqua", Georgia, serif;
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  margin: 0 0 1.25rem;
 }
 
-.tabs { display: flex; gap: 0.25rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+.tabs { display: flex; gap: 1.25rem; margin-bottom: 2rem; }
 .tabs button {
-  background: transparent;
+  position: relative;
+  background: none;
+  border: none;
+  padding: 0.25rem 0;
+  font-size: 0.92rem;
   color: var(--muted);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 0.35rem 0.9rem;
   cursor: pointer;
-  font-size: 0.9rem;
+  transition: color 0.2s ease;
 }
-.tabs button.active { color: var(--text); border-color: var(--accent); }
+.tabs button:hover { color: var(--ink); }
+.tabs button.active { color: var(--ink); }
+.tabs button.active::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: -4px;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 2px;
+  animation: underline 0.25s ease;
+}
+@keyframes underline { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
-.view { display: flex; flex-direction: column; gap: 1.25rem; }
+/* ---- Views ---- */
+.view {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  animation: fade-up 0.35s ease both;
+}
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ---- Word card ---- */
+.card-stage { perspective: 1400px; }
 
 .card {
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 1.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 2rem 1.75rem;
+  box-shadow: 0 1px 2px rgba(60, 50, 30, 0.04);
 }
 
-.card-head { display: flex; align-items: start; justify-content: space-between; }
-.word { font-size: 2.2rem; margin: 0; }
+/* default gentle entrance (lists, search) */
+.card.enter { animation: fade-up 0.3s ease both; }
+
+/* "Show me another" — the card turns like a page in a book, hinged on the left
+   spine. Two phases: (1) the page swings down from upright, then (2) it gently
+   settles flat with a small overshoot. */
+.card.flip {
+  animation: page-flip 1.5s cubic-bezier(0.4, 0, 0.2, 1) both;
+  transform-origin: left center;
+  backface-visibility: hidden;
+  will-change: transform;
+}
+@keyframes page-flip {
+  /* phase 1 — swing in from upright at the spine */
+  0%   { transform: rotateY(108deg); opacity: 0; box-shadow: -18px 10px 28px rgba(60,50,30,0.20); }
+  60%  { transform: rotateY(-9deg); opacity: 1; box-shadow: -7px 7px 18px rgba(60,50,30,0.12); }
+  /* phase 2 — settle flat with a soft overshoot */
+  80%  { transform: rotateY(4deg); box-shadow: -3px 4px 10px rgba(60,50,30,0.07); }
+  100% { transform: rotateY(0); box-shadow: 0 1px 2px rgba(60,50,30,0.04); }
+}
+
+.card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.word {
+  font-family: "Iowan Old Style", Palatino, "Book Antiqua", Georgia, serif;
+  font-size: 2.4rem;
+  font-weight: 600;
+  margin: 0;
+  line-height: 1.1;
+}
 .star {
   background: none; border: none; cursor: pointer;
-  font-size: 1.6rem; color: var(--accent); line-height: 1;
+  font-size: 1.4rem; color: var(--accent); line-height: 1;
+  transition: transform 0.15s ease;
 }
+.star:hover { transform: scale(1.15); }
+.star.on { animation: pop 0.3s ease; }
+@keyframes pop { 0% { transform: scale(0.7); } 60% { transform: scale(1.25); } 100% { transform: scale(1); } }
 
-.phonetic { color: var(--muted); margin: 0.25rem 0 0; }
-.pos { font-style: italic; color: var(--accent); margin: 0.5rem 0 0; font-size: 0.9rem; }
-.definition { margin: 0.75rem 0 0; }
-.example { color: var(--muted); margin: 0.75rem 0 0; }
+.phonetic { color: var(--muted); margin: 0.4rem 0 0; font-size: 0.95rem; }
+.pos { color: var(--accent); font-style: italic; margin: 0.6rem 0 0; font-size: 0.88rem; }
+.definition { margin: 0.85rem 0 0; }
+.example { color: var(--muted); margin: 0.75rem 0 0; font-style: italic; }
 .muted { color: var(--muted); }
 
-.actions { display: flex; gap: 0.6rem; margin-top: 1.5rem; }
+/* ---- Actions ---- */
+.actions { display: flex; gap: 0.6rem; margin-top: 1.75rem; }
 .actions button {
   flex: 1;
-  padding: 0.6rem;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--text);
+  padding: 0.6rem 0.75rem;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
   cursor: pointer;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
+  transition: transform 0.12s ease, background 0.2s ease, border-color 0.2s ease;
 }
-.actions button.primary { background: var(--accent); color: #0f1115; border-color: var(--accent); }
-.actions button:disabled { opacity: 0.5; cursor: default; }
+.actions button:hover:not(:disabled) { transform: translateY(-1px); border-color: var(--accent); }
+.actions button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.actions button.primary:hover:not(:disabled) { background: #a85a32; }
+.actions button:disabled { opacity: 0.45; cursor: default; }
 
+/* "I know this" confirmation toast */
+.toast {
+  position: fixed;
+  left: 50%; bottom: 2rem;
+  transform: translateX(-50%);
+  background: var(--ink);
+  color: var(--bg);
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  animation: toast 1s ease both;
+  pointer-events: none;
+}
+@keyframes toast {
+  0% { opacity: 0; transform: translate(-50%, 10px); }
+  15%, 75% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -6px); }
+}
+
+/* ---- Search ---- */
 .search { display: flex; gap: 0.5rem; }
 .search input {
   flex: 1;
-  padding: 0.6rem 0.8rem;
-  border-radius: 10px;
-  border: 1px solid var(--border);
+  padding: 0.6rem 0.85rem;
+  border-radius: 9px;
+  border: 1px solid var(--line);
   background: var(--surface);
-  color: var(--text);
+  color: var(--ink);
+  font-size: 0.95rem;
 }
+.search input:focus { outline: none; border-color: var(--accent); }
 .search button {
   padding: 0 1.1rem;
-  border-radius: 10px;
+  border-radius: 9px;
   border: 1px solid var(--accent);
   background: var(--accent);
-  color: #0f1115;
+  color: #fff;
   cursor: pointer;
 }
 
-.date-label { color: var(--muted); font-size: 0.85rem; margin: 0 0 0.4rem; }
+.date-label { color: var(--muted); font-size: 0.8rem; margin: 0 0 0.4rem; letter-spacing: 0.03em; }
+
+/* Respect users who prefer less motion — no gratuitous animation. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

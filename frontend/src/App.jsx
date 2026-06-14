@@ -27,6 +27,8 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true); // initial word-of-day load
   const [error, setError] = useState(null);
+  const [flipKey, setFlipKey] = useState(0); // bump to retrigger the page-flip
+  const [toast, setToast] = useState(null); // transient "I know this" confirmation
 
   // favorites (just the word list) kept in React state; the backend is the source.
   const [favorites, setFavorites] = useState([]);
@@ -67,6 +69,7 @@ export default function App() {
       } else {
         setCurrent(res.word);
         setSeen((s) => [...s, res.word.word]);
+        setFlipKey((k) => k + 1); // remount the card → page-flip animation fires
       }
     } catch (e) {
       setError(message(e));
@@ -75,7 +78,7 @@ export default function App() {
     }
   }
 
-  // "I know this": record it in the backend (so it never resurfaces), then advance.
+  // "I know this": record it, flash a confirmation, then flip to the next word.
   async function knowThis(word) {
     try {
       await addKnown(word);
@@ -83,6 +86,8 @@ export default function App() {
       setError(message(e));
       return;
     }
+    setToast(`“${word}” marked as known`);
+    setTimeout(() => setToast(null), 1000);
     await another();
   }
 
@@ -95,6 +100,8 @@ export default function App() {
     return (
       <div className="view">
         <WordCard
+          key={flipKey}
+          anim={flipKey === 0 ? "enter" : "flip"}
           data={current}
           isFavorite={current && favorites.includes(current.word)}
           onToggleFavorite={toggleFavorite}
@@ -132,6 +139,8 @@ export default function App() {
           <SearchBar favorites={favorites} onToggleFavorite={toggleFavorite} />
         )}
       </main>
+
+      {toast && <div className="toast">{toast}</div>}
     </div>
   );
 }

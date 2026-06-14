@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#0f1115"/>
-  <text x="50%" y="50%" dy=".06em" text-anchor="middle" dominant-baseline="middle"
-        font-family="-apple-system, Segoe UI, Roboto, sans-serif" font-size="40"
-        font-weight="700" fill="#7c9cff">V</text>
+  <rect width="64" height="64" rx="14" fill="#f6f1e6"/>
+  <text x="50%" y="50%" dy=".07em" text-anchor="middle" dominant-baseline="middle"
+        font-family="Iowan Old Style, Palatino, Georgia, serif" font-size="42"
+        font-weight="600" fill="#bf6b3f">V</text>
 </svg>
