@@ -395,13 +395,52 @@ with small hardening (data stays global/open; no per-user auth yet).
 ### Remaining still-open (acceptable for a demo, not for real use)
 - No per-user auth — favorites/known words are one shared, world-writable dataset.
 
-### Deploy steps (Console + on-instance commands) — see walkthrough
-1. Get the code onto EC2 — either push to GitHub then clone, or `scp` the folder.
-   (Commits are being held until the project is complete, so likely `scp` or a
-   push right before deploying.)
-2. EC2 key pair + launch `t3.micro` (Amazon Linux 2023).
-3. Security group: 22 (SSH, my IP) + 80 (HTTP, public).
-4. SSH in → install Docker + compose plugin.
-5. Create `.env` with a strong password + `CORS_ORIGINS=http://<public-ip>` →
-   `docker compose up -d --build`.
-6. Open `http://<public-ip>`.
+---
+
+## Phase 6 — Polish: static IP + free HTTPS ✅
+- **Elastic IP** (`3.136.190.65`) attached so the address survives Stop/Start.
+- **Free domain** via DuckDNS → `vocabio.duckdns.org` points at the Elastic IP.
+- **Automatic HTTPS** via a Caddy reverse proxy (`docker-compose.prod.yml` +
+  `Caddyfile`): Caddy obtains and auto-renews a Let's Encrypt cert, terminates TLS,
+  forwards to the frontend, and redirects HTTP→HTTPS. Production overlay only —
+  local dev is unchanged.
+- Opened port 443; server `.env` set to `FRONTEND_PORT=8080` (Caddy owns 80/443)
+  and `CORS_ORIGINS=https://vocabio.duckdns.org`.
+- **Cost:** $0 while in the 12-month AWS free tier.
+
+Run on the server:
+`docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d`
+
+---
+
+## Phase 7 — CI/CD (GitHub Actions) ✅
+`.github/workflows/ci.yml` — on every push to `main`:
+1. **test** — Python 3.12, install `requirements-dev.txt`, run `pytest` (5 tests).
+2. **deploy** (only if tests pass, only on push to `main`) — `rsync` source to EC2
+   (excluding `.env`/data) and rebuild/restart via the prod Caddy overlay.
+
+### Logic / decisions
+- **Dedicated deploy key** — generated a separate `vocabio_deploy` ed25519 keypair;
+  public half in the server's `authorized_keys`, private half in the `EC2_SSH_KEY`
+  GitHub secret (host in `EC2_HOST`). If it leaks, delete one line from
+  `authorized_keys` — the admin `vocabio_key.pem` is unaffected. Chosen over reusing
+  the admin key (smaller, revocable blast radius) and over OIDC+SSM (less setup).
+- **Port 22 opened to 0.0.0.0/0** so GitHub's runners can reach SSH. Safe-ish because
+  SSH is key-only (password auth disabled on AL2023); trade-off is brute-force noise.
+- The server-side `.env` is excluded from `rsync`, so deploys never clobber secrets.
+- Needed `gh auth refresh -s workflow` to push workflow files.
+
+---
+
+## Status: COMPLETE
+- **Live:** https://vocabio.duckdns.org (HTTPS, auto-renewing cert)
+- **Repo:** github.com/21raghav/vocabio (private)
+- **Stack:** React + Vite · FastAPI · Postgres · Docker Compose · AWS EC2 · Caddy/Let's Encrypt · GitHub Actions
+- **Cost:** $0 (AWS free tier)
+- **Self-healing:** `restart: unless-stopped` + Docker-on-boot
+- **Push to `main` → tests run → auto-deploys.**
+
+### Still open (intentional, not blockers)
+- No per-user auth (favorites/known are one global dataset).
+- Word list ~64 (could grow to 365+).
+- GitHub Actions Node-20 deprecation warning (cosmetic; bump action versions later).
