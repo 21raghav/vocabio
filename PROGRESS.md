@@ -13,7 +13,7 @@ the curated list is a JSON file and definitions are cached in memory.
 | File | Purpose |
 |---|---|
 | `backend/requirements.txt` | Dependencies: FastAPI, uvicorn, httpx, pydantic. |
-| `backend/words.json` | Curated list of ~64 interesting words. |
+| `backend/words.json` | Curated list of interesting words (now 738; started ~64). |
 | `backend/.env.example` | Configurable CORS origins + cache TTL. |
 | `backend/app/config.py` | Loads settings from env / `.env`. |
 | `backend/app/schemas.py` | Pydantic response shapes (`Word`, `NextWordResponse`). |
@@ -440,7 +440,24 @@ Run on the server:
 - **Self-healing:** `restart: unless-stopped` + Docker-on-boot
 - **Push to `main` → tests run → auto-deploys.**
 
+## Phase 8 — Final polish ✅
+- **CI builds the frontend** — added a `build-frontend` job (`npm ci && npm run build`)
+  so a broken React build fails CI before the deploy step. `deploy` needs both
+  `test` and `build-frontend`.
+- **Per-IP rate limiting** — `client_ip()` keys the limiter on `X-Forwarded-For`
+  (set by the proxies) instead of the internal proxy IP, so the 120/min is per
+  visitor, not global.
+- **LICENSE** — MIT.
+- **Favicon + meta tags** — SVG favicon, description + Open Graph tags for link previews.
+- **Security headers (Caddy)** — HSTS, `X-Content-Type-Options`, `X-Frame-Options`,
+  `Referrer-Policy`, and stripped the upstream `Server` banner. (Note: a
+  Caddyfile-only change needs the caddy container **recreated**, not just `up -d`.)
+- **AWS Budgets cost alert** — emails if spend exceeds the threshold (guards against
+  surprise charges after the free tier ends).
+
 ### Still open (intentional, not blockers)
 - No per-user auth (favorites/known are one global dataset).
-- Word list ~64 (could grow to 365+).
+- Word list now 738 curated words (~2 years before any repeat).
+- Thinner-than-ideal tests (no frontend tests; word-of-day/dictionary paths untested).
+- No DB backups, monitoring/uptime check, or CI lint step.
 - GitHub Actions Node-20 deprecation warning (cosmetic; bump action versions later).
