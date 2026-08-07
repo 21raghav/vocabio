@@ -48,12 +48,6 @@ cd frontend && npm install && npm run dev
 ```
 </details>
 
-## Configuration
-
-Copy `.env.example` to `.env` to override defaults (Postgres credentials,
-`CORS_ORIGINS`, `FRONTEND_PORT`). `.env` is gitignored — secrets never get
-committed. Locally the compose defaults work without an `.env`.
-
 ## Tests
 
 ```bash
